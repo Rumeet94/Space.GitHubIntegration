@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Net;
 using System.Threading.Tasks;
 
+using Space.GitHubIntegration.Projections;
+
 namespace Space.GitHubIntegration.Servicies.Space {
-	interface ISpaceService {
+	public interface ISpaceService {
+		Task<HttpStatusCode> PushGitHubNotification(GitHubCommit commit);
 	}
 }

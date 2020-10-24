@@ -1,23 +1,29 @@
 ﻿using System;
-using System.IO;
-
-using System.Text;
+using System.Diagnostics.Contracts;
+using System.Net;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 
-using Newtonsoft.Json;
-
 using Space.GitHubIntegration.Projections;
+using Space.GitHubIntegration.Servicies.GitHub;
 using Space.GitHubIntegration.Servicies.Space;
 
 namespace Space.GitHubIntegration.Controllers {
 	[ApiController]
 	[Route("github")]
 	public class GitHubApiController : ControllerBase {
-		private const string _sha1Prefix = "sha1=";
-		private const string _secretKey = "mytestissigood";
+		private readonly ISpaceService _spaceService;
+		private readonly IGitHubService _gitHubService;
+
+		public GitHubApiController(ISpaceService spaceService, IGitHubService gitHubService) {
+			Contract.Requires(spaceService != null);
+			Contract.Requires(gitHubService != null);
+
+			_spaceService = spaceService;
+			_gitHubService = gitHubService;
+		}
 
 		[HttpPost]
 		public async Task<IActionResult> Post() {
@@ -25,65 +31,23 @@ namespace Space.GitHubIntegration.Controllers {
 			Request.Headers.TryGetValue("X-Hub-Signature", out StringValues signature);
 			Request.Headers.TryGetValue("X-GitHub-Delivery", out StringValues delivery);
 			
-			using (var reader = new StreamReader(Request.Body))
-			{
-				var responce = await reader.ReadToEndAsync();
-				var commit = JsonConvert.DeserializeObject<GitHubCommit>(responce);
-				
-				if (IsGithubPushAllowed(responce, eventName, signature))
-				{
-					var service = new SpaceService();
+			try {
+				var commit = await _gitHubService.GetCommit(Request.Body, eventName, signature);
+				var result = await PushToSpace(commit);
 
-					await service.PushGitHubNotification(commit);
-
-					return Ok();
-				}
+				return new OkObjectResult(result);
 			}
-			return new OkObjectResult("hi");
+			catch {
+				return new BadRequestResult();
+			}
 		}
 
-		private bool IsGithubPushAllowed(string payload, string eventName, string signatureWithPrefix) {
-			if (string.IsNullOrWhiteSpace(payload)) {
-				throw new ArgumentNullException(nameof(payload));
+		private async Task<HttpStatusCode> PushToSpace(GitHubCommit commit) {
+			if (commit == null) {
+				return HttpStatusCode.InternalServerError;
 			}
 
-			if (string.IsNullOrWhiteSpace(eventName)) {
-				throw new ArgumentNullException(nameof(eventName));
-			}
-
-			if (string.IsNullOrWhiteSpace(signatureWithPrefix)) {
-				throw new ArgumentNullException(nameof(signatureWithPrefix));
-			}
-
-			//if (signatureWithPrefix.StartsWith(_sha1Prefix, StringComparison.OrdinalIgnoreCase)) {
-		
-			//var signature = signatureWithPrefix.Substring(_sha1Prefix.Length);
-			//var secret = Encoding.ASCII.GetBytes(_secretKey);
-			//var payloadBytes = Encoding.ASCII.GetBytes(payload);
-
-			//	using (var hmSha1 = new HMACSHA1(secret)) {
-			//		var hash = hmSha1.ComputeHash(payloadBytes);
-			//		var hashString = ToHexString(hash);
-
-			//		if (hashString.Equals(signature)) {
-			//			return true;
-			//		}
-			//	}
-			//}
-
-			return true;
-		}
-
-
-		public static string ToHexString(byte[] bytes) {
-			var builder = new StringBuilder(bytes.Length * 2);
-
-			foreach (byte b in bytes)
-			{
-				builder.AppendFormat("{0:x2}", b);
-			}
-
-			return builder.ToString();
+			return await _spaceService.PushGitHubNotification(commit);
 		}
 	}
 }

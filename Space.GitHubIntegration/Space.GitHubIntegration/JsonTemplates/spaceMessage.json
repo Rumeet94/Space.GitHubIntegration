@@ -1,0 +1,40 @@
+{
+	"recipient": {
+		"className": "MessageRecipient.Channel",
+		"channel": {
+			"className": "ChatChannel.FromId",
+			"id": null
+		}
+	},
+	"content": {
+		"className": "ChatMessage.Block",
+		"sections": [
+			{
+				"className": "MessageSection",
+				"header": "**GitHub**",
+				"elements": [
+					{
+						"className": "MessageText",
+						"content": null
+					},
+					{
+						"className": "MessageText",
+						"accessory": {
+							"className": "MessageIcon",
+							"icon": {
+								"icon": "commits"
+							},
+							"style": "SUCCESS"
+						},
+						"content": null
+					},
+					{
+						"className": "MessageText",
+						"content": null
+					}
+				]
+			}
+		]
+	},
+	"unfurlLinks": false
+}

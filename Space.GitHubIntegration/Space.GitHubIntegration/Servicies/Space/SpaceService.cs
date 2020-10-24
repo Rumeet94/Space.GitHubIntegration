@@ -1,66 +1,45 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Diagnostics.Contracts;
+using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
 
-using Space.GitHubIntegration.Entities.GitHub;
+using Space.GitHubIntegration.Builders.Space.Message;
+using Space.GitHubIntegration.Builders.Space.Url;
 using Space.GitHubIntegration.Projections;
 
 namespace Space.GitHubIntegration.Servicies.Space {
 	public class SpaceService : ISpaceService {
-		private const string _token = "eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiI0STloR0szT3RldEoiLCJhdWQiOiJjaXJjbGV0LXdlYi11aSIsIm9yZ0RvbWFpbiI6IndvcmtsZSIsIm5hbWUiOiJlZ29yYnVub3YiLCJpc3MiOiJodHRwczpcL1wvamV0YnJhaW5zLnNwYWNlIiwicGVybV90b2tlbiI6IjFQMmVZWTBBZFFkciIsInByaW5jaXBhbF90eXBlIjoiVVNFUiIsImlhdCI6MTYwMzMxMzUyMn0.bO5scwGdw8aL3eWyrXj5mV8-5UiQQZkpfsDlzS36_UTJYk1JfFH31JTmDCZiGgZ_pyQ2J6zFiOyUXDXoXBNysP-pK91tA4EP7WWiaCI_CywiNyDbXTXUC7cvMSTELo1cM-cmyxJQk5ZiO7Xba4JZ0-Lu-sQRxgwZM7RQZh2Tzew";
-		private const string _url = "https://workle.jetbrains.space/api/http/chats/channels/{0}/messages";
+		private readonly IHttpClientFactory _httpClientFactory;
+		private readonly ISpaceUrlBuilder _urlBuilder;
+		private readonly ISpaceMessageBuilder _messageBuilder;
 
-		public async Task PushGitHubNotification(GitHubCommit commit) {
-			using (var client = new HttpClient()) {
-				client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+		public SpaceService(IHttpClientFactory httpClientFactory, ISpaceUrlBuilder urlBuilder, ISpaceMessageBuilder messageBuilder) {
+			Contract.Requires(httpClientFactory != null);
+			Contract.Requires(urlBuilder != null);
+			Contract.Requires(messageBuilder != null);
 
-				var messageText = GetMessageText(commit);
-				var text = JsonConvert.SerializeObject(new Dictionary<string, string> { {"text", messageText} });
+			_httpClientFactory = httpClientFactory;
+			_urlBuilder = urlBuilder;
+			_messageBuilder = messageBuilder;
+		}
 
-				var content = new StringContent(text, Encoding.UTF8, "application/json");
-				var url = string.Format(_url, "4O8cet2xZjCb");
+		public async Task<HttpStatusCode> PushGitHubNotification(GitHubCommit commit) {
+			var url = _urlBuilder.BuildChannelTextMessageUrl("2PTicn3FhRAU");
+			var content = GetContent(commit);
 
-				await client.PostAsync(url, content);
+			using (var client = _httpClientFactory.CreateClient("spaceHttpClient")) {
+				var result = await client.PostAsync(url, content);
+
+				return result.StatusCode;
 			}
 		}
 
-		private string GetMessageText(GitHubCommit commit) {
-			var isSomeCommit = commit.Commits.Count > 1;
-			var commitAlias = isSomeCommit
-				? "commits"
-				: "commit";
-			
-			var outerCommitsText = isSomeCommit
-				? GetSomeCommits(commit.Commits)
-				: GetSingleCommits(commit.Commits);
+		private StringContent GetContent(GitHubCommit commit) {
+			var message = _messageBuilder.BuildChannelCommitMessage(commit, "2PTicn3FhRAU");
 
-			return $"**{commit.Pusher.Name}**\r\n" +
-				$"**{commit.Commits.Count} {commitAlias}** pushed to " +
-				$"[{commit.Repository.FullName}]({commit.Repository.HtmlUrl})\r\n" +
-				outerCommitsText;
-		}
-
-		private string GetSingleCommits(List<CommitInfo> commits) {
-			var commit = commits.FirstOrDefault();
-
-			if (commit == null) {
-				return null;
-			}
-
-			return $"[{commit.Message}]({commit.Url})";
-		}
-
-		private string GetSomeCommits(List<CommitInfo> commits) {
-			var builder = new StringBuilder("commits:\r\n");
-
-			commits.ForEach(c => builder.AppendLine($"**{c.Author.Name}** - [{c.Message}]({c.Url})\r\n"));
-
-			return builder.ToString();
+			return new StringContent(message, Encoding.UTF8, "application/json");
 		}
 	}
 }

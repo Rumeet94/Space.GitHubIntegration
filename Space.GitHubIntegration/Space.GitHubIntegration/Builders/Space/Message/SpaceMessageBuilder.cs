@@ -42,7 +42,7 @@ namespace Space.GitHubIntegration.Builders.Space.Message {
 				: "commit";
 
 			return $"**{commit.Commits.Count} new {commitAlias}** pushed to " +
-				$"[{commit.Repository.FullName}]({commit.Repository.HtmlUrl})";
+				$"[{commit.Branch}]({commit.CommitUrl})";
 		}
 
 		private string GetCommits(List<CommitInfo> commits) {
@@ -52,9 +52,5 @@ namespace Space.GitHubIntegration.Builders.Space.Message {
 
 			return builder.ToString();
 		}
-
-		
-
-		
 	}
 }

@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-
 using Space.GitHubIntegration.Builders.Space.Message;
 using Space.GitHubIntegration.Builders.Space.Url;
 using Space.GitHubIntegration.Projections;

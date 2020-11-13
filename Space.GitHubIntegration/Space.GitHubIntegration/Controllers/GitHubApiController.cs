@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics.Contracts;
+﻿using System.Diagnostics.Contracts;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -25,7 +24,11 @@ namespace Space.GitHubIntegration.Controllers {
 			_gitHubService = gitHubService;
 		}
 
-		[HttpPost]
+		[HttpGet]
+		public IActionResult Get() =>
+			Ok("Ready for work");
+
+		[HttpPost()]
 		public async Task<IActionResult> Post() {
 			Request.Headers.TryGetValue("X-GitHub-Event", out StringValues eventName);
 			Request.Headers.TryGetValue("X-Hub-Signature", out StringValues signature);
